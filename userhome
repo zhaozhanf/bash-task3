@@ -1,107 +1,77 @@
+#!/bin/bash
+
+# 帮助信息函数
 show_help() {
-    echo "Usage: userhome [-f file] [username]"
-    echo "Finds the home directory of a user from /etc/passwd (or specified file)"
-    echo
-    echo "Options:"
-    echo "  -f file    Use specified file instead of /etc/passwd"
-    echo "  --help     Show this help message"
-    echo "  --usage    Same as --help"
-    echo
-    echo "If username is not specified, current user is used"
+  echo "Usage: userhome [-f file] username"
+  echo "Finds the home directory of a user from /etc/passwd (or specified file)"
+  echo "Options:"
+  echo "  -f file    Use specified file instead of /etc/passwd"
+  echo "  --help     Show this help message"
+  echo "  --usage    Same as --help"
+  echo "If username is not specified, current user is used"
 }
 
+# 初始化变量：默认文件为/etc/passwd，用户名为空
 passwd_file="/etc/passwd"
-username="$USER"
+username=""
 
+# 处理命令行选项和参数
 while [[ $# -gt 0 ]]; do
-    case "$1" in
-        -f)
-            if [[ -z "$2" ]]; then
-                echo "Error: Missing filename after -f" >&2
-                exit 3
-            fi
-            passwd_file="$2"
-            shift 2
-            ;;
-        --help|--usage)
-            show_help
-            exit 0
-            ;;
-        -*)
-            echo "Error: Unknown option $1" >&2
-            show_help >&2
-            exit 3
-            ;;
-        *)
-            username="$1"
-            shift
-            ;;
-    esac
+  case "$1" in
+    # 处理 -f 选项（指定解析文件）
+    -f)
+      if [[ -n "$2" && ! "$2" =~ ^- ]]; then
+        passwd_file="$2"
+        shift 2
+      else
+        echo "Error: Missing filename after -f" >&2
+        show_help >&2
+        exit 3
+      fi
+      ;;
+    # 处理 --help/--usage（显示帮助）
+    --help|--usage)
+      show_help
+      exit 0
+      ;;
+    # 处理未知选项
+    -*)
+      echo "Error: Unknown option $1" >&2
+      show_help >&2
+      exit 3
+      ;;
+    # 处理用户名参数
+    *)
+      if [[ -n "$username" ]]; then
+        echo "Error: Too many arguments" >&2
+        show_help >&2
+        exit 3
+      fi
+      username="$1"
+      shift
+      ;;
+  esac
 done
 
-if [[ ! -f "$passwd_file" ]]; then
-    echo "Error: File $passwd_file not found" >&2
-    exit 2
+# 未指定用户名时，使用当前登录用户
+if [[ -z "$username" ]]; then
+  username="$USER"
 fi
 
+# 检查文件是否存在
+if [[ ! -f "$passwd_file" ]]; then
+  echo "Error: File '$passwd_file' not found" >&2
+  exit 2
+fi
+
+# 用 grep 查找用户行，cut 提取第6列（家目录）
 home_dir=$(grep "^$username:" "$passwd_file" | cut -d: -f6)
 
+# 检查用户是否存在
 if [[ -z "$home_dir" ]]; then
-    echo "Error: User $username not found in $passwd_file" >&2
-    exit 1
+  echo "Error: User '$username' not found in '$passwd_file'" >&2
+  exit 1
+else
+  echo "$home_dir"
+  exit 0
 fi
-show_help() {
-    echo "Usage: userhome [-f file] [username]"
-    echo "Finds the home directory of a user from /etc/passwd (or specified file)"
-    echo
-    echo "Options:"
-    echo "  -f file    Use specified file instead of /etc/passwd"
-    echo "  --help     Show this help message"
-    echo "  --usage    Same as --help"
-    echo
-    echo "If username is not specified, current user is used"
-}
-
-passwd_file="/etc/passwd"
-username="$USER"
-
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        -f)
-            if [[ -z "$2" ]]; then
-                echo "Error: Missing filename after -f" >&2
-                exit 3
-            fi
-            passwd_file="$2"
-            shift 2
-            ;;
-        --help|--usage)
-            show_help
-            exit 0
-            ;;
-        -*)
-            echo "Error: Unknown option $1" >&2
-            show_help >&2
-            exit 3
-            ;;
-        *)
-            username="$1"
-            shift
-            ;;
-    esac
-done
-
-if [[ ! -f "$passwd_file" ]]; then
-    echo "Error: File $passwd_file not found" >&2
-    exit 2
-fi
-
-home_dir=$(grep "^$username:" "$passwd_file" | cut -d: -f6)
-
-if [[ -z "$home_dir" ]]; then
-    echo "Error: User $username not found in $passwd_file" >&2
-    exit 1
-fi
-
-echo "$home_dir"
-exit 0
