@@ -1,0 +1,107 @@
+show_help() {
+    echo "Usage: userhome [-f file] [username]"
+    echo "Finds the home directory of a user from /etc/passwd (or specified file)"
+    echo
+    echo "Options:"
+    echo "  -f file    Use specified file instead of /etc/passwd"
+    echo "  --help     Show this help message"
+    echo "  --usage    Same as --help"
+    echo
+    echo "If username is not specified, current user is used"
+}
+
+passwd_file="/etc/passwd"
+username="$USER"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -f)
+            if [[ -z "$2" ]]; then
+                echo "Error: Missing filename after -f" >&2
+                exit 3
+            fi
+            passwd_file="$2"
+            shift 2
+            ;;
+        --help|--usage)
+            show_help
+            exit 0
+            ;;
+        -*)
+            echo "Error: Unknown option $1" >&2
+            show_help >&2
+            exit 3
+            ;;
+        *)
+            username="$1"
+            shift
+            ;;
+    esac
+done
+
+if [[ ! -f "$passwd_file" ]]; then
+    echo "Error: File $passwd_file not found" >&2
+    exit 2
+fi
+
+home_dir=$(grep "^$username:" "$passwd_file" | cut -d: -f6)
+
+if [[ -z "$home_dir" ]]; then
+    echo "Error: User $username not found in $passwd_file" >&2
+    exit 1
+fi
+show_help() {
+    echo "Usage: userhome [-f file] [username]"
+    echo "Finds the home directory of a user from /etc/passwd (or specified file)"
+    echo
+    echo "Options:"
+    echo "  -f file    Use specified file instead of /etc/passwd"
+    echo "  --help     Show this help message"
+    echo "  --usage    Same as --help"
+    echo
+    echo "If username is not specified, current user is used"
+}
+
+passwd_file="/etc/passwd"
+username="$USER"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -f)
+            if [[ -z "$2" ]]; then
+                echo "Error: Missing filename after -f" >&2
+                exit 3
+            fi
+            passwd_file="$2"
+            shift 2
+            ;;
+        --help|--usage)
+            show_help
+            exit 0
+            ;;
+        -*)
+            echo "Error: Unknown option $1" >&2
+            show_help >&2
+            exit 3
+            ;;
+        *)
+            username="$1"
+            shift
+            ;;
+    esac
+done
+
+if [[ ! -f "$passwd_file" ]]; then
+    echo "Error: File $passwd_file not found" >&2
+    exit 2
+fi
+
+home_dir=$(grep "^$username:" "$passwd_file" | cut -d: -f6)
+
+if [[ -z "$home_dir" ]]; then
+    echo "Error: User $username not found in $passwd_file" >&2
+    exit 1
+fi
+
+echo "$home_dir"
+exit 0
