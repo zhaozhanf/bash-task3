@@ -1,0 +1,89 @@
+#!/bin/bash
+set -euo pipefail
+
+# 初始化变量
+verbose=0
+dry_run=0
+days=""
+dirs=()
+stop_parse=0
+
+# 错误处理函数
+error_exit() {
+    echo "Ошибка: $1" >&2
+    exit 1
+}
+
+# 解析命令行参数
+while [[ $# -gt 0 ]]; do
+    if [[ $stop_parse -eq 1 ]]; then
+        dirs+=("$1")
+        shift
+        continue
+    fi
+
+    case "$1" in
+        --)
+            stop_parse=1
+            shift
+            ;;
+        -v)
+            [[ $verbose -eq 1 ]] && error_exit "Опция -v указана повторно"
+            verbose=1
+            shift
+            ;;
+        -d)
+            [[ $dry_run -eq 1 ]] && error_exit "Опция -d указана повторно"
+            dry_run=1
+            shift
+            ;;
+        -*)
+            error_exit "Неподдерживаемая опция: $1"
+            ;;
+        *)
+            if [[ -z $days ]]; then
+                [[ $1 =~ ^[0-9]+$ ]] || error_exit "Количество дней должно быть целым положительным числом: $1"
+                days="$1"
+            else
+                dirs+=("$1")
+            fi
+            shift
+            ;;
+    esac
+done
+
+# 校验必填参数
+[[ -z $days ]] && error_exit "Не указано количество дней! Формат: delolder [-v|-d] N [--] dirs"
+[[ ${#dirs[@]} -eq 0 ]] && error_exit "Не указаны каталоги для поиска! Формат: delolder [-v|-d] N [--] dirs"
+
+# 处理目录：用.制标识为路径，彻底规避-开头的解析问题
+for dir in "${dirs[@]}"; do
+    # 拼接当前路径，强制转为相对路径
+    local_dir="./$dir"
+    # 若已是绝对路径，直接使用
+    if [[ $dir == /* ]]; then
+        local_dir="$dir"
+    fi
+    # 检查目录是否存在
+    if ! [[ -d "$local_dir" ]]; then
+        echo "Предупреждение: Каталог '$dir' не существует (пропускаем)" >&2
+        continue
+    fi
+
+    # 构造find命令，明确指定路径（用.//避免find混淆）
+    find_cmd=(find "$local_dir" -type f -mtime +"$days")
+    if [[ $dry_run -eq 1 ]]; then
+        echo -e "\n[DRY-RUN] Каталог: $local_dir — файлы под удаление:"
+        "${find_cmd[@]}" -print0 | xargs -0 -I {} echo "  {}"
+    else
+        if [[ $verbose -eq 1 ]]; then
+            echo -e "\n[УДАЛЕНИЕ] Каталог: $local_dir — удаляемые файлы:"
+            "${find_cmd[@]}" -print0 | xargs -0 -I {} sh -c 'echo "  {}"; rm -f {}'
+        else
+            "${find_cmd[@]}" -delete
+            echo "Каталог '$local_dir': файлы старше $days дней удалены (тихий режим)"
+        fi
+    fi
+done
+
+exit 0
